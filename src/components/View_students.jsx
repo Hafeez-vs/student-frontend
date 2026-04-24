@@ -6,14 +6,16 @@ import { faPen, faTrash } from "@fortawesome/free-solid-svg-icons";
 const Students = () => {
   const [students, setStudents] = useState([]);
   const [form, setForm] = useState({
-    id:"",
+    id: "",
     admno: "",
     name: "",
     age: "",
     course: "",
     mark: "",
-    imageUrl: "",
   });
+
+  const [file, setFile] = useState(null);
+  const [hoveredImage, setHoveredImage] = useState(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -29,7 +31,10 @@ const Students = () => {
     },
   });
 
-  // 📥 Load students
+  useEffect(() => {
+    loadStudents();
+  }, []);
+
   const loadStudents = async () => {
     try {
       const res = await axios.get(API, config());
@@ -39,89 +44,92 @@ const Students = () => {
     }
   };
 
-  useEffect(() => {
-    loadStudents();
-  }, []);
-
-  // 🧠 Handle input
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // ➕ Add
   const handleAdd = async () => {
     try {
-      const payload = {
-        admno: Number(form.admno),
-        name: form.name,
-        age: Number(form.age),
-        course: form.course,
-        mark: Number(form.mark),
-        imageUrl: form.imageUrl,
-      };
+      const formData = new FormData();
 
-      await axios.post(API, payload, config());
+      formData.append("admno", form.admno);
+      formData.append("name", form.name);
+      formData.append("age", form.age);
+      formData.append("course", form.course);
+      formData.append("mark", form.mark);
+
+      if (file) formData.append("imageFile", file);
+
+      await axios.post(API, formData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
       loadStudents();
       clearForm();
-      setShowForm(false);
     } catch (err) {
       console.log(err.response?.data);
     }
   };
 
-  // ✏️ Edit
   const handleEdit = (s) => {
     setForm(s);
     setIsEdit(true);
     setShowForm(true);
   };
 
-  // 💾 Update
   const handleUpdate = async () => {
     try {
-      await axios.put(`${API}/${form.id}`, form, config());
+      const formData = new FormData();
+
+      formData.append("admno", form.admno);
+      formData.append("name", form.name);
+      formData.append("age", form.age);
+      formData.append("course", form.course);
+      formData.append("mark", form.mark);
+
+      if (file) formData.append("imageFile", file);
+
+      await axios.put(`${API}/${form.id}`, formData, config());
+
       loadStudents();
       clearForm();
       setIsEdit(false);
-      setShowForm(false);
+    } catch (err) {
+      console.error(err.response?.data);
+    }
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await axios.delete(`${API}/${selectedId}`, config());
+      loadStudents();
+      setShowDeleteModal(false);
     } catch (err) {
       console.error(err);
     }
   };
 
-
-
-  const confirmDelete = async () => {
-  try {
-    await axios.delete(`${API}/${selectedId}`, config());
-    loadStudents();
-    setShowDeleteModal(false);
-    setSelectedId(null);
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-  // 🔄 Clear form
   const clearForm = () => {
     setForm({
-      id:"",
+      id: "",
       admno: "",
       name: "",
       age: "",
       course: "",
       mark: "",
-      imageUrl: "",
     });
+    setFile(null);
   };
 
   return (
     <div style={styles.container}>
       {/* HEADER */}
       <div style={styles.header}>
-        <h2> Student Management</h2>
+        <h2>Student Management</h2>
 
-        <div>
+        <div style={styles.headerButtons}>
           <button
             style={styles.addMainBtn}
             onClick={() => {
@@ -130,7 +138,7 @@ const Students = () => {
               clearForm();
             }}
           >
-             Add Student
+            Add Student
           </button>
 
           <button
@@ -148,22 +156,35 @@ const Students = () => {
       {/* FORM */}
       {showForm && (
         <div style={styles.formCard}>
-          <h3>{isEdit ? " Edit Student" : "Add Student"}</h3>
+          <h3>{isEdit ? "Edit Student" : "Add Student"}</h3>
 
           <div style={styles.formGrid}>
-            <input style={styles.input} type="number" name="admno" placeholder="Adm No" value={form.admno} onChange={handleChange} /> 
+            <input style={styles.input} name="admno" placeholder="Adm No" value={form.admno} onChange={handleChange} />
             <input style={styles.input} name="name" placeholder="Name" value={form.name} onChange={handleChange} />
-            <input style={styles.input} type="number" name="age" placeholder="Age" value={form.age} onChange={handleChange} />
+            <input style={styles.input} name="age" placeholder="Age" value={form.age} onChange={handleChange} />
             <input style={styles.input} name="course" placeholder="Course" value={form.course} onChange={handleChange} />
-            <input style={styles.input} type="number" name="mark" placeholder="Mark" value={form.mark} onChange={handleChange} />
-            <input style={styles.input} name="imageUrl" placeholder="Image URL" value={form.imageUrl} onChange={handleChange} />
+            <input style={styles.input} name="mark" placeholder="Mark" value={form.mark} onChange={handleChange} />
+
+            <input style={styles.input} type="file" onChange={(e) => setFile(e.target.files[0])} />
           </div>
+
+          {file && (
+            <img
+              src={URL.createObjectURL(file)}
+              alt="preview"
+              style={{ width: "100px", marginTop: "10px" }}
+            />
+          )}
 
           <div style={{ marginTop: "10px" }}>
             {isEdit ? (
-              <button style={styles.updateBtn} onClick={handleUpdate}>Update</button>
+              <button style={styles.updateBtn} onClick={handleUpdate}>
+                Update
+              </button>
             ) : (
-              <button style={styles.addBtn} onClick={handleAdd}>Add</button>
+              <button style={styles.addBtn} onClick={handleAdd}>
+                Add
+              </button>
             )}
           </div>
         </div>
@@ -185,14 +206,16 @@ const Students = () => {
 
         <tbody>
           {students.map((s) => (
-            <tr key={s.admno}>
+            <tr key={s.id}>
               <td style={styles.td}>
                 <img
-                  src={s.imageUrl || "https://via.placeholder.com/50"}
+                  src={`https://localhost:7173${s.imageUrl}`}
                   style={styles.avatar}
+                  onMouseEnter={() => setHoveredImage(s.imageUrl)}
                   alt=""
                 />
               </td>
+
               <td style={styles.td}>{s.admno}</td>
               <td style={styles.td}>{s.name}</td>
               <td style={styles.td}>{s.age}</td>
@@ -201,46 +224,66 @@ const Students = () => {
 
               <td style={styles.td}>
                 <div style={styles.actionContainer}>
-                <button style={styles.iconEdit} onClick={() => handleEdit(s)}>
-  <FontAwesomeIcon icon={faPen} />
-</button>
+                  <button style={styles.iconEdit} onClick={() => handleEdit(s)}>
+                    <FontAwesomeIcon icon={faPen} />
+                  </button>
 
-<button
-  style={styles.iconDelete}
-  onClick={() => {
-    setSelectedId(s.id);
-    setShowDeleteModal(true);
-  }}
->
-  <FontAwesomeIcon icon={faTrash} />
-</button>
-</div>
+                  <button
+                    style={styles.iconDelete}
+                    onClick={() => {
+                      setSelectedId(s.id);
+                      setShowDeleteModal(true);
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faTrash} />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      {showDeleteModal && (
-  <div style={styles.modalOverlay}>
-    <div style={styles.modalBox}>
-      <h3>⚠️ Confirm Delete</h3>
-      <p>Are you sure you want to delete this student?</p>
 
-      <div style={styles.modalActions}>
-        <button style={styles.confirmBtn} onClick={confirmDelete}>
-          Yes, Delete
-        </button>
-
-        <button
-          style={styles.cancelBtn}
-          onClick={() => setShowDeleteModal(false)}
+      {/* IMAGE POPUP (FIXED NO BLINK) */}
+      {hoveredImage && (
+        <div
+          style={styles.overlay}
+          onMouseLeave={() => setHoveredImage(null)}
         >
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+          <div
+            style={styles.imagePopup}
+            onMouseEnter={(e) => e.stopPropagation()}
+          >
+            <img
+              src={`https://localhost:7173${hoveredImage}`}
+              style={styles.popupImage}
+              alt=""
+            />
+          </div>
+        </div>
+      )}
+
+      {/* DELETE MODAL */}
+      {showDeleteModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalBox}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure?</p>
+
+            <div style={styles.modalActions}>
+              <button style={styles.confirmBtn} onClick={confirmDelete}>
+                Yes
+              </button>
+              <button
+                style={styles.cancelBtn}
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -248,27 +291,26 @@ const Students = () => {
 export default Students;
 
 const styles = {
-  container: {
-    padding: "30px",
-    background: "#eef2f7",
-    minHeight: "100vh",
-    fontFamily: "Segoe UI, sans-serif",
-  },
+  container: { padding: "30px", background: "#eef2f7", minHeight: "100vh" },
 
   header: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: "20px",
+  },
+
+  // ✅ spacing between buttons
+  headerButtons: {
+    display: "flex",
+    gap: "10px",
   },
 
   addMainBtn: {
     background: "#4CAF50",
     color: "#fff",
-    border: "none",
     padding: "10px 16px",
     borderRadius: "8px",
-    marginRight: "10px",
+    border: "none",              // ✅ removed border
     cursor: "pointer",
     fontWeight: "600",
   },
@@ -276,166 +318,180 @@ const styles = {
   logout: {
     background: "#e53935",
     color: "#fff",
-    border: "none",
     padding: "10px 16px",
     borderRadius: "8px",
+    border: "none",              // ✅ removed border
     cursor: "pointer",
     fontWeight: "600",
   },
 
   formCard: {
     background: "#fff",
-    padding: "25px",
-    borderRadius: "12px",
-    marginBottom: "25px",
-    boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+    padding: "20px",
+    margin: "20px 0",
+    borderRadius: "10px",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
   },
 
-  // 👇 FORM GRID FIX (NOT SINGLE LINE)
   formGrid: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
-    gap: "15px",
-    marginTop: "15px",
+    gap: "12px",
   },
 
+  // ✅ better input styling
   input: {
-    padding: "10px",
-    borderRadius: "6px",
+    padding: "10px 12px",
     border: "1px solid #ccc",
+    borderRadius: "6px",
     fontSize: "14px",
-  },
-
-  addBtn: {
-    background: "#4CAF50",
-    color: "#fff",
-    border: "none",
-    padding: "10px 20px",
-    borderRadius: "6px",
-    cursor: "pointer",
-    marginTop: "15px",
-  },
-
-  updateBtn: {
-    background: "#1976d2",
-    color: "#fff",
-    border: "none",
-    padding: "10px 20px",
-    borderRadius: "6px",
-    cursor: "pointer",
-    marginTop: "15px",
+    outline: "none",
+    transition: "0.2s",
   },
 
   table: {
     width: "100%",
-    borderCollapse: "collapse",
     background: "#fff",
-    borderRadius: "10px",
-    overflow: "hidden",
-    boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+    borderCollapse: "collapse",
+    border: "1px solid #ccc",   // ✅ table border
   },
 
   th: {
     background: "#1976d2",
     color: "#fff",
     padding: "12px",
-    textAlign: "center",
-    border: "1px solid #ddd",
+    border: "1px solid #ddd",   // ✅ header border
   },
 
   td: {
     padding: "12px",
     textAlign: "center",
-    border: "1px solid #eee",
+    border: "1px solid #ddd",   // ✅ cell borders
   },
 
-  row: {
-    transition: "0.2s",
-  },
-
+  // ✅ improved image look
   avatar: {
-    width: "45px",
-    height: "45px",
-    borderRadius: "50%",
+    width: "50px",
+    height: "50px",
+    borderRadius: "8px",
     objectFit: "cover",
+    border: "1px solid #ccc",
+    cursor: "pointer",
+  },
+
+  actionContainer: {
+    display: "flex",
+    gap: "10px",
+    justifyContent: "center",
   },
 
   iconEdit: {
-  background: "#FFC107",
-  border: "none",
-  borderRadius: "50%",
-  width: "38px",
-  height: "38px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-},
+    width: "35px",
+    height: "35px",
+    borderRadius: "50%",
+    background: "#FFC107",
+    border: "none",              // ✅ removed border
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+  },
 
-iconDelete: {
-  background: "#E53935",
+  iconDelete: {
+    width: "35px",
+    height: "35px",
+    borderRadius: "50%",
+    background: "#E53935",
+    color: "#fff",
+    border: "none",              // ✅ removed border
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+  },
+
+  overlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backdropFilter: "blur(8px)",
+    background: "rgba(0,0,0,0.3)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+
+  imagePopup: {
+    background: "#fff",
+    padding: "10px",
+    borderRadius: "12px",
+  },
+
+  popupImage: {
+    width: "320px",
+    height: "320px",
+    objectFit: "cover",
+  },
+
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    background: "rgba(0,0,0,0.5)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  modalBox: {
+    background: "#fff",
+    padding: "20px",
+    borderRadius: "10px",
+  },
+
+  modalActions: {
+    display: "flex",
+    justifyContent: "space-around",
+  },
+
+  confirmBtn: {
+    background: "red",
+    color: "#fff",
+    padding: "10px",
+    border: "none",
+    borderRadius: "6px",
+  },
+
+  cancelBtn: {
+    background: "gray",
+    color: "#fff",
+    padding: "10px",
+    border: "none",
+    borderRadius: "6px",
+  },
+
+  addBtn: {
+  background: "#4CAF50",
   color: "#fff",
   border: "none",
-  borderRadius: "50%",
-  width: "38px",
-  height: "38px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-},
-
-actionContainer: {
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  gap: "10px",   // space between buttons
-},
-
-modalOverlay: {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  width: "100%",
-  height: "100%",
-  background: "rgba(0,0,0,0.5)",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  zIndex: 1000,
-},
-
-modalBox: {
-  background: "#fff",
-  padding: "25px",
-  borderRadius: "10px",
-  width: "300px",
-  textAlign: "center",
-  boxShadow: "0 5px 15px rgba(0,0,0,0.2)",
-},
-
-modalActions: {
-  marginTop: "20px",
-  display: "flex",
-  justifyContent: "space-around",
-},
-
-confirmBtn: {
-  background: "#e53935",
-  color: "#fff",
-  border: "none",
-  padding: "8px 15px",
+  padding: "10px 20px",
   borderRadius: "6px",
   cursor: "pointer",
+  fontWeight: "600",
 },
 
-cancelBtn: {
-  background: "#6c757d",
+updateBtn: {
+  background: "#1976d2",
   color: "#fff",
   border: "none",
-  padding: "8px 15px",
+  padding: "10px 20px",
   borderRadius: "6px",
   cursor: "pointer",
+  fontWeight: "600",
 },
-
 };
