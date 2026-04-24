@@ -1,24 +1,35 @@
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+import Login from "./components/Login";
+import Students from "./components/View_students";
+import Register from "./components/Register";
+
+// 🔐 Protected Route
+const PrivateRoute = ({ children }) => {
+  const token = localStorage.getItem("token");
+  return token ? children : <Navigate to="/" />;
+};
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* Protected Route */}
+        <Route
+          path="/students"
+          element={
+            <PrivateRoute>
+              <Students />
+            </PrivateRoute>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
