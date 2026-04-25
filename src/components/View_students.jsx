@@ -22,6 +22,14 @@ const Students = () => {
 
   const [isEdit, setIsEdit] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showProfileForm, setShowProfileForm] = useState(false);
+
+const [profile, setProfile] = useState({
+  currentUsername: "",
+  currentPassword: "",
+  newUsername: "",
+  newPassword: "",
+});
 
   const API = "https://localhost:7173/api/students";
 
@@ -48,6 +56,10 @@ const Students = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleProfileChange = (e) => {
+  setProfile({ ...profile, [e.target.name]: e.target.value });
+};
+
   const handleAdd = async () => {
     try {
       const formData = new FormData();
@@ -72,6 +84,45 @@ const Students = () => {
       console.log(err.response?.data);
     }
   };
+
+  const handleUserUpdate = async () => {
+  try {
+    if (!profile.currentPassword) {
+      alert("Enter current password");
+      return;
+    }
+
+    if (!profile.newUsername && !profile.newPassword) {
+      alert("Nothing to update");
+      return;
+    }
+
+    await axios.put(
+      "https://localhost:7173/api/user/update-profile",
+      {
+        OldUsername: profile.currentUsername,
+        OldPassword: profile.currentPassword,
+        newUsername: profile.newUsername,
+        newPassword: profile.newPassword,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    alert("Profile updated. Please login again.");
+
+    // 🔥 FORCE LOGOUT
+    localStorage.removeItem("token");
+    window.location.href = "/";
+
+  } catch (err) {
+    console.log(err.response?.data);
+    alert("Update failed");
+  }
+};
 
   const handleEdit = (s) => {
     setForm(s);
@@ -142,6 +193,13 @@ const Students = () => {
           </button>
 
           <button
+  style={styles.addMainBtn}
+  onClick={() => setShowProfileForm(!showProfileForm)}
+>
+  Update Profile
+</button>
+
+          <button
             style={styles.logout}
             onClick={() => {
               localStorage.removeItem("token");
@@ -189,6 +247,54 @@ const Students = () => {
           </div>
         </div>
       )}
+
+      {showProfileForm && (
+  <div style={styles.formCard}>
+    <h3>Update Profile</h3>
+
+    <div style={styles.formGrid}>
+      <input
+        style={styles.input}
+        name="currentUsername"
+        placeholder="Current Username"
+        value={profile.currentUsername}
+        onChange={handleProfileChange}
+      />
+
+      <input
+        style={styles.input}
+        type="password"
+        name="currentPassword"
+        placeholder="Current Password"
+        value={profile.currentPassword}
+        onChange={handleProfileChange}
+      />
+
+      <input
+        style={styles.input}
+        name="newUsername"
+        placeholder="New Username (optional)"
+        value={profile.newUsername}
+        onChange={handleProfileChange}
+      />
+
+      <input
+        style={styles.input}
+        type="password"
+        name="newPassword"
+        placeholder="New Password (optional)"
+        value={profile.newPassword}
+        onChange={handleProfileChange}
+      />
+    </div>
+
+    <div style={{ marginTop: "10px" }}>
+      <button style={styles.updateBtn} onClick={handleUserUpdate}>
+        Update Profile
+      </button>
+    </div>
+  </div>
+)}
 
       {/* TABLE */}
       <table style={styles.table}>
